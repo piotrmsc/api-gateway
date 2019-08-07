@@ -16,16 +16,19 @@ limitations under the License.
 package main
 
 import (
-	"flag"
-	"os"
-
+	"context"
+	"fmt"
 	gatewayv2alpha1 "github.com/kyma-incubator/api-gateway/api/v2alpha1"
-	"github.com/kyma-incubator/api-gateway/controllers"
+	"github.com/kyma-incubator/api-gateway/pkg/apis/networking/v1alpha3"
 	"k8s.io/apimachinery/pkg/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
+	"os"
 	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/log/zap"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/client/config"
+	corev1 "k8s.io/api/core/v1"
+
 	// +kubebuilder:scaffold:imports
 )
 
@@ -38,41 +41,34 @@ func init() {
 	_ = clientgoscheme.AddToScheme(scheme)
 
 	_ = gatewayv2alpha1.AddToScheme(scheme)
+	_ = v1alpha3.AddToScheme(scheme)
 	// +kubebuilder:scaffold:scheme
 }
 
 func main() {
-	var metricsAddr string
-	var enableLeaderElection bool
-	flag.StringVar(&metricsAddr, "metrics-addr", ":8080", "The address the metric endpoint binds to.")
-	flag.BoolVar(&enableLeaderElection, "enable-leader-election", false,
-		"Enable leader election for controller manager. Enabling this will ensure there is only one active controller manager.")
-	flag.Parse()
-
-	ctrl.SetLogger(zap.Logger(true))
-
-	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
-		Scheme:             scheme,
-		MetricsBindAddress: metricsAddr,
-		LeaderElection:     enableLeaderElection,
+	cl, err := client.New(config.GetConfigOrDie(), client.Options{
+		Scheme: scheme,
 	})
 	if err != nil {
-		setupLog.Error(err, "unable to start manager")
+		fmt.Println("failed to create client")
 		os.Exit(1)
 	}
 
-	if err = (&controllers.ApiReconciler{
-		Client: mgr.GetClient(),
-		Log:    ctrl.Log.WithName("controllers").WithName("Api"),
-	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "Api")
-		os.Exit(1)
-	}
-	// +kubebuilder:scaffold:builder
+	podList := &corev1.PodList{}
 
-	setupLog.Info("starting manager")
-	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
-		setupLog.Error(err, "problem running manager")
+	err = cl.List(context.Background(), podList, client.InNamespace("default"))
+	if err != nil {
+		fmt.Printf("failed to list pods in namespace default: %v\n", err)
 		os.Exit(1)
 	}
+
+	vs := v1alpha3.VirtualService{}
+	err = cl.Get(context.TODO(), client.ObjectKey{Name: "wordpressdemo", Namespace: "default"}, &vs)
+	if err != nil {
+		setupLog.Error(err, "cannot get obj")
+		os.Exit(1)
+	}
+	fmt.Println("DUPA")
+	fmt.Println(vs.Spec.Gateways)
+
 }
