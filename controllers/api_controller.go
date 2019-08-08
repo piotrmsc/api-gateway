@@ -41,10 +41,10 @@ func (r *ApiReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	_ = context.Background()
 	_ = r.Log.WithValues("api", req.NamespacedName)
 
-	// your logic here
+	// demo sample fetching virtualservices
 
 	list := networkingv1alpha3.VirtualServiceList{}
-	err := r.Client.List(context.TODO(), &list, client.InNamespace("kyma-system"))
+	err := r.Client.List(context.TODO(), &list, client.InNamespace(req.Namespace))
 	if err != nil {
 		fmt.Printf("ooops, error occured when fetching vs " + err.Error())
 		os.Exit(1)
