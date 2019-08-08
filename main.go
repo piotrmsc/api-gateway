@@ -16,15 +16,16 @@ limitations under the License.
 package main
 
 import (
+	"context"
 	"flag"
-	"os"
-
 	gatewayv2alpha1 "github.com/kyma-incubator/api-gateway/api/v2alpha1"
-	"github.com/kyma-incubator/api-gateway/controllers"
 	"k8s.io/apimachinery/pkg/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
+	networkingv1alpha3 "knative.dev/pkg/apis/istio/v1alpha3"
+	"os"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	// +kubebuilder:scaffold:imports
 )
@@ -38,6 +39,7 @@ func init() {
 	_ = clientgoscheme.AddToScheme(scheme)
 
 	_ = gatewayv2alpha1.AddToScheme(scheme)
+	_ = networkingv1alpha3.AddToScheme(scheme)
 	// +kubebuilder:scaffold:scheme
 }
 
@@ -61,18 +63,21 @@ func main() {
 		os.Exit(1)
 	}
 
-	if err = (&controllers.ApiReconciler{
-		Client: mgr.GetClient(),
-		Log:    ctrl.Log.WithName("controllers").WithName("Api"),
-	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "Api")
-		os.Exit(1)
-	}
-	// +kubebuilder:scaffold:builder
+	cl := mgr.GetClient()
 
-	setupLog.Info("starting manager")
-	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
-		setupLog.Error(err, "problem running manager")
-		os.Exit(1)
-	}
+	cl.List(context.TODO(), &networkingv1alpha3.VirtualServiceList{}, client.InNamespace("kyma-system"))
+	//if err = (&controllers.ApiReconciler{
+	//	Client: mgr.GetClient(),
+	//	Log:    ctrl.Log.WithName("controllers").WithName("Api"),
+	//}).SetupWithManager(mgr); err != nil {
+	//	setupLog.Error(err, "unable to create controller", "controller", "Api")
+	//	os.Exit(1)
+	//}
+	//// +kubebuilder:scaffold:builder
+	//
+	//setupLog.Info("starting manager")
+	//if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
+	//	setupLog.Error(err, "problem running manager")
+	//	os.Exit(1)
+	//}
 }
